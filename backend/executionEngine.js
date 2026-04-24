@@ -5,6 +5,7 @@ function executeCode(code) {
 
   const state = {};
   const steps = [];
+  const baseTimestamp = Date.now();
 
   const normalizedCode = code.replace(/\r\n/g, "\n").trim();
   const loopMatch = normalizedCode.match(
@@ -24,8 +25,8 @@ function executeCode(code) {
 
   let stepNumber = 1;
   while (evaluateCondition(loopConfig.condition, state)) {
-    runBody(bodyStatements, state);
-    steps.push(buildStep(stepNumber, state));
+    const operationMetadata = runBody(bodyStatements, state);
+    steps.push(buildStep(stepNumber, state, operationMetadata, baseTimestamp));
     stepNumber += 1;
     applyUpdate(loopConfig.update, state);
   }
@@ -122,6 +123,8 @@ function applyUpdate(update, state) {
 }
 
 function runBody(statements, state) {
+  let lastOperationMetadata = null;
+
   statements.forEach((statement) => {
     const plusEqualsMatch = statement.match(/^([a-zA-Z_$][\w$]*)\s*\+=\s*(.+)$/);
 
@@ -132,7 +135,14 @@ function runBody(statements, state) {
     const [, variableName, expression] = plusEqualsMatch;
     state[variableName] =
       getVariableValue(variableName, state) + evaluateExpression(expression, state);
+
+    lastOperationMetadata = {
+      line: normalizeStatement(statement),
+      operation: "addition"
+    };
   });
+
+  return lastOperationMetadata;
 }
 
 function evaluateExpression(expression, state) {
@@ -183,11 +193,21 @@ function getVariableValue(variableName, state) {
   return state[variableName];
 }
 
-function buildStep(stepNumber, state) {
+function buildStep(stepNumber, state, operationMetadata, baseTimestamp) {
+  const variables = { ...state };
+
   return {
     step: stepNumber,
-    ...state
+    line: operationMetadata?.line || null,
+    variables,
+    operation: operationMetadata?.operation || "unknown",
+    timestamp: baseTimestamp + stepNumber - 1,
+    ...variables
   };
+}
+
+function normalizeStatement(statement) {
+  return statement.replace(/\s+/g, " ").trim();
 }
 
 module.exports = {
