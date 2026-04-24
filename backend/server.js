@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const { executeCode } = require("./executionEngine");
 
 const app = express();
 app.use(cors());
@@ -11,15 +12,12 @@ app.get("/", (req, res) => {
 
 app.post("/execute", (req, res) => {
   const { code } = req.body;
-
-  // TEMP: dummy response
-  res.json({
-    steps: [
-      { step: 1, i: 0, sum: 0 },
-      { step: 2, i: 1, sum: 1 },
-      { step: 3, i: 2, sum: 3 }
-    ]
-  });
+  try {
+    const steps = executeCode(code);
+    res.json({ steps });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
 });
 
 app.listen(5000, () => console.log("Server running on port 5000"));
