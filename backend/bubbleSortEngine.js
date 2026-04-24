@@ -1,3 +1,5 @@
+const { createTraceEvent } = require("./traceEvents");
+
 function generateBubbleSortSteps(inputArray) {
   if (!Array.isArray(inputArray)) {
     throw new Error("Input must be an array.");
@@ -31,9 +33,25 @@ function generateBubbleSortSteps(inputArray) {
 }
 
 function buildStep(step, array, i, j, swapped) {
-  return {
+  const arraySnapshot = [...array];
+  const traceEvent = createTraceEvent("bubble-sort", {
     step,
-    array: [...array],
+    operation: swapped ? "swap" : "compare",
+    action: swapped ? "swap" : "compare",
+    arrayState: arraySnapshot,
+    pointers: {
+      i,
+      j,
+      active: [j, j + 1]
+    },
+    metadata: {
+      swapped
+    }
+  });
+
+  return {
+    ...traceEvent,
+    array: arraySnapshot,
     i,
     j,
     swapped

@@ -1,3 +1,5 @@
+const { createTraceEvent } = require("./traceEvents");
+
 function executeCode(code) {
   if (typeof code !== "string" || code.trim() === "") {
     throw new Error("Code input is required.");
@@ -186,13 +188,21 @@ function getVariableValue(variableName, state) {
 
 function buildStep(stepNumber, state, operationMetadata, baseTimestamp) {
   const variables = cloneState(state);
+  const timestamp = baseTimestamp + stepNumber - 1;
+
+  const traceEvent = createTraceEvent("execution", {
+    step: stepNumber,
+    timestamp,
+    line: operationMetadata?.line || null,
+    operation: operationMetadata?.operation || "unknown",
+    variables,
+    metadata: {
+      visualizer: "execution"
+    }
+  });
 
   return {
-    step: stepNumber,
-    line: operationMetadata?.line || null,
-    variables,
-    operation: operationMetadata?.operation || "unknown",
-    timestamp: baseTimestamp + stepNumber - 1,
+    ...traceEvent,
     ...variables
   };
 }

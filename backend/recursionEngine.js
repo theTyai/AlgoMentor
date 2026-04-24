@@ -1,3 +1,5 @@
+const { createTraceEvent } = require("./traceEvents");
+
 function generateFactorialSteps(n) {
   if (!Number.isInteger(n) || n < 0) {
     throw new Error("Input must be a non-negative integer.");
@@ -41,9 +43,19 @@ function factorial(n, stack, steps, stepCounter) {
 }
 
 function buildStep(step, action, value, stack, fn) {
-  return {
+  const traceEvent = createTraceEvent("recursion", {
     step,
     action,
+    operation: action,
+    stackState: stack,
+    metadata: {
+      fn,
+      value
+    }
+  });
+
+  return {
+    ...traceEvent,
     fn,
     value,
     stack

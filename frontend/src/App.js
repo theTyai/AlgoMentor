@@ -1,71 +1,52 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import "./App.css";
 import ArrayVisualizer from "./ArrayVisualizer";
 import StackVisualizer from "./StackVisualizer";
+import useTracePlayer from "./useTracePlayer";
 
 const initialCode = `let sum = 0;
 for(let i=0;i<3;i++){
   sum += i;
 }`;
 
-const playbackSpeeds = {
-  slow: 1500,
-  normal: 1000,
-  fast: 500
-};
-
 function App() {
   const [code, setCode] = useState(initialCode);
   const [bubbleInput, setBubbleInput] = useState("5,3,8,1");
   const [recursionInput, setRecursionInput] = useState("3");
-  const [steps, setSteps] = useState([]);
-  const [currentStep, setCurrentStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [complexityResult, setComplexityResult] = useState(null);
   const [executionResult, setExecutionResult] = useState({
     mode: null,
+    traceType: null,
     output: "",
     error: null,
     executionTime: null
   });
   const [viewMode, setViewMode] = useState("execution");
-  const [isAutoPlaying, setIsAutoPlaying] = useState(false);
-  const [playbackSpeed, setPlaybackSpeed] = useState("normal");
+  const {
+    steps,
+    currentStep,
+    activeStep,
+    isPlaying,
+    playbackSpeed,
+    setPlaybackSpeed,
+    setTrace,
+    goToPreviousStep,
+    goToNextStep,
+    togglePlayback,
+    resetPlayback,
+    jumpToStep
+  } = useTracePlayer();
 
-  const activeStep = steps[currentStep];
   const isBubbleSortView = viewMode === "bubble";
   const isRecursionView = viewMode === "recursion";
   const isSandboxView = viewMode === "sandbox";
   const isExecutionVisualView = viewMode === "execution";
-  const stepVariables = isBubbleSortView ? {} : activeStep?.variables || {};
-  const arrayEntries = Object.entries(stepVariables).filter(([, value]) => Array.isArray(value));
-  const variableEntries = Object.entries(stepVariables).filter(
-    ([, value]) => !Array.isArray(value)
-  );
-  const bubbleArray = isBubbleSortView && activeStep ? activeStep.array || [] : null;
-
-  useEffect(() => {
-    if (!isAutoPlaying || steps.length === 0 || currentStep >= steps.length - 1) {
-      if (currentStep >= steps.length - 1) {
-        setIsAutoPlaying(false);
-      }
-      return undefined;
-    }
-
-    const intervalId = window.setInterval(() => {
-      setCurrentStep((previousStep) =>
-        Math.min(previousStep + 1, Math.max(steps.length - 1, 0))
-      );
-    }, playbackSpeeds[playbackSpeed]);
-
-    return () => window.clearInterval(intervalId);
-  }, [currentStep, isAutoPlaying, playbackSpeed, steps.length]);
-
   async function handleExecute() {
     setLoading(true);
     setError("");
-    setIsAutoPlaying(false);
+    resetPlayback();
     setComplexityResult(null);
 
     try {
@@ -85,22 +66,22 @@ function App() {
 
       setExecutionResult({
         mode: data.mode || null,
+        traceType: data.traceType || null,
         output: data.output || "",
         error: data.error || null,
         executionTime: data.executionTime ?? null
       });
       setViewMode(data.mode === "sandbox" ? "sandbox" : "execution");
-      setSteps(data.steps || []);
-      setCurrentStep(0);
+      setTrace(data.trace?.events || data.steps || []);
     } catch (requestError) {
       setExecutionResult({
         mode: null,
+        traceType: null,
         output: "",
         error: null,
         executionTime: null
       });
-      setSteps([]);
-      setCurrentStep(0);
+      setTrace([]);
       setError(requestError.message);
     } finally {
       setLoading(false);
@@ -138,7 +119,7 @@ function App() {
   async function handleRecursion() {
     setLoading(true);
     setError("");
-    setIsAutoPlaying(false);
+    resetPlayback();
     clearCodeExecutionResult();
 
     try {
@@ -163,11 +144,9 @@ function App() {
       }
 
       setViewMode("recursion");
-      setSteps(data.steps || []);
-      setCurrentStep(0);
+      setTrace(data.trace?.events || data.steps || []);
     } catch (requestError) {
-      setSteps([]);
-      setCurrentStep(0);
+      setTrace([]);
       setError(requestError.message);
     } finally {
       setLoading(false);
@@ -177,7 +156,7 @@ function App() {
   async function handleBubbleSort() {
     setLoading(true);
     setError("");
-    setIsAutoPlaying(false);
+    resetPlayback();
     clearCodeExecutionResult();
 
     try {
@@ -206,47 +185,19 @@ function App() {
       }
 
       setViewMode("bubble");
-      setSteps(data.steps || []);
-      setCurrentStep(0);
+      setTrace(data.trace?.events || data.steps || []);
     } catch (requestError) {
-      setSteps([]);
-      setCurrentStep(0);
+      setTrace([]);
       setError(requestError.message);
     } finally {
       setLoading(false);
     }
   }
 
-  function goToPreviousStep() {
-    setCurrentStep((previousStep) => Math.max(previousStep - 1, 0));
-  }
-
-  function goToNextStep() {
-    setCurrentStep((previousStep) =>
-      Math.min(previousStep + 1, Math.max(steps.length - 1, 0))
-    );
-  }
-
-  function toggleAutoPlay() {
-    if (steps.length === 0) {
-      return;
-    }
-
-    if (currentStep >= steps.length - 1) {
-      setCurrentStep(0);
-    }
-
-    setIsAutoPlaying((previousValue) => !previousValue);
-  }
-
-  function resetSteps() {
-    setIsAutoPlaying(false);
-    setCurrentStep(0);
-  }
-
   function clearCodeExecutionResult() {
     setExecutionResult({
       mode: null,
+      traceType: null,
       output: "",
       error: null,
       executionTime: null
@@ -279,6 +230,16 @@ function App() {
 
   const modeGuide = getModeGuide();
   const sandboxStatus = executionResult.error ? "error" : "success";
+  const activeVariables =
+    !isBubbleSortView && !isRecursionView ? activeStep?.variables || {} : {};
+  const activeArrayEntries = Object.entries(activeVariables).filter(([, value]) =>
+    Array.isArray(value)
+  );
+  const activeVariableEntries = Object.entries(activeVariables).filter(
+    ([, value]) => !Array.isArray(value)
+  );
+  const activeBubbleArray = isBubbleSortView && activeStep ? activeStep.arrayState || activeStep.array || [] : null;
+  const stepInputValue = steps.length > 0 ? currentStep + 1 : 0;
 
   return (
     <div className="App">
@@ -356,6 +317,7 @@ function App() {
                   <div className="result-metrics">
                     <div className="metric-chip success">Trace Ready</div>
                     <div className="metric-chip neutral">{steps.length} steps</div>
+                    <div className="metric-chip neutral">{executionResult.traceType}</div>
                   </div>
                   <div className="info-block" style={{ marginBottom: 0 }}>
                     The code matched AlgoMentor&apos;s supported visualization patterns, so it
@@ -504,7 +466,7 @@ function App() {
 
                 {!isBubbleSortView && !isRecursionView ? (
                   <div className="variables-grid">
-                    {variableEntries.map(([name, value]) => (
+                    {activeVariableEntries.map(([name, value]) => (
                       <div key={name} className="variable-card">
                         <div className="variable-label">{name}</div>
                         <div className="variable-value">{String(value)}</div>
@@ -517,10 +479,10 @@ function App() {
                   <ArrayVisualizer
                     key={`bubble-${activeStep.step}`}
                     name="bubbleSort"
-                    values={bubbleArray}
-                    currentIndex={activeStep.j}
-                    highlightedIndices={[activeStep.j, activeStep.j + 1]}
-                    swapped={activeStep.swapped}
+                    values={activeBubbleArray}
+                    currentIndex={activeStep.pointers?.j ?? activeStep.j}
+                    highlightedIndices={activeStep.pointers?.active || [activeStep.j, activeStep.j + 1]}
+                    swapped={activeStep.metadata?.swapped ?? activeStep.swapped}
                   />
                 ) : isRecursionView ? (
                   <StackVisualizer
@@ -530,12 +492,12 @@ function App() {
                     fnName={activeStep.fn}
                   />
                 ) : (
-                  arrayEntries.map(([name, value]) => (
+                  activeArrayEntries.map(([name, value]) => (
                     <ArrayVisualizer
                       key={name}
                       name={name}
                       values={value}
-                      currentIndex={stepVariables.i}
+                      currentIndex={activeStep.pointers?.i ?? activeVariables.i}
                     />
                   ))
                 )}
@@ -560,15 +522,15 @@ function App() {
                 </button>
                 <button
                   type="button"
-                  onClick={toggleAutoPlay}
+                  onClick={togglePlayback}
                   disabled={steps.length === 0}
-                  className={`nav-button ${isAutoPlaying ? "playing" : ""}`}
+                  className={`nav-button ${isPlaying ? "playing" : ""}`}
                 >
-                  {isAutoPlaying ? "Pause" : "Play"}
+                  {isPlaying ? "Pause" : "Play"}
                 </button>
                 <button
                   type="button"
-                  onClick={resetSteps}
+                  onClick={resetPlayback}
                   disabled={steps.length === 0}
                   className="nav-button reset"
                 >
@@ -584,6 +546,31 @@ function App() {
                   <option value="normal">Normal (1s)</option>
                   <option value="fast">Fast (0.5s)</option>
                 </select>
+                <input
+                  className="control-select step-scrubber"
+                  type="range"
+                  min="1"
+                  max={Math.max(steps.length, 1)}
+                  value={stepInputValue || 1}
+                  onChange={(event) => jumpToStep(Number(event.target.value) - 1)}
+                  disabled={steps.length === 0}
+                />
+                <input
+                  className="control-select step-jump-input"
+                  type="number"
+                  min="1"
+                  max={Math.max(steps.length, 1)}
+                  value={stepInputValue}
+                  onChange={(event) => {
+                    const nextValue = Number(event.target.value);
+                    if (Number.isNaN(nextValue)) {
+                      return;
+                    }
+
+                    jumpToStep(nextValue - 1);
+                  }}
+                  disabled={steps.length === 0}
+                />
               </div>
             </div>
           ) : null : null}

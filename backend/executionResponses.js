@@ -1,8 +1,11 @@
+const { serializeTrace } = require("./traceSerializer");
+
 function createVisualExecutionResponse(traceType, steps, metadata = {}) {
   return {
     mode: "visual",
     traceType,
     steps,
+    trace: serializeTrace(traceType, steps),
     output: null,
     error: null,
     executionTime: null,
@@ -15,6 +18,7 @@ function createSandboxExecutionResponse(output, error, executionTime, metadata =
     mode: "sandbox",
     traceType: null,
     steps: [],
+    trace: null,
     output,
     error,
     executionTime,

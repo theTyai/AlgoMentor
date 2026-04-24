@@ -33,6 +33,10 @@ Phase 1 completion notes:
 
 ## Phase 2: Trace Platform Foundation
 
+Status:
+
+- completed
+
 Goal:
 
 - standardize traces as first-class objects
@@ -48,6 +52,15 @@ Deliverables:
 Exit criteria:
 
 - all visual features use a shared trace format
+
+Phase 2 completion notes:
+
+- canonical trace event schema added
+- trace serialization helpers added on the backend
+- visual responses now include shared `trace` payloads
+- execution, bubble sort, and recursion now emit standardized trace events
+- frontend playback state moved into a shared trace player hook
+- scrubber and jump-to-step controls added for visual playback
 
 ## Phase 3: AST-Based Parsing Layer
 

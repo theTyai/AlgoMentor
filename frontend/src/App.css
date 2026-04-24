@@ -299,6 +299,16 @@
   border-color: rgba(37, 99, 235, 0.2);
 }
 
+.step-scrubber {
+  max-width: 220px;
+  min-width: 180px;
+  padding: 10px 12px;
+}
+
+.step-jump-input {
+  max-width: 90px;
+}
+
 .result-header {
   display: flex;
   justify-content: space-between;

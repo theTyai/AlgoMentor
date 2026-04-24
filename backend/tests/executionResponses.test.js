@@ -15,6 +15,11 @@ test("createVisualExecutionResponse returns the shared visual execution contract
     mode: "visual",
     traceType: "execution",
     steps: [{ step: 1 }],
+    trace: {
+      type: "execution",
+      totalSteps: 1,
+      events: [{ step: 1 }]
+    },
     output: null,
     error: null,
     executionTime: null,
@@ -33,6 +38,7 @@ test("createSandboxExecutionResponse returns the shared sandbox execution contra
     mode: "sandbox",
     traceType: null,
     steps: [],
+    trace: null,
     output: "5",
     error: null,
     executionTime: 3,
